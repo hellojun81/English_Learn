@@ -3,506 +3,60 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>구간 반복 플레이어</title>
-<meta name="theme-color" content="#11181c">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<title>영어 문장 연습</title>
+<meta name="theme-color" content="#eef1f2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#11181c" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="영어 연습">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@500;600&display=swap">
 <style>
-:root {
-  --bg: #eef1f2; --paper: #ffffff; --ink: #18242b; --muted: #5f6f78; --line: #d6dde0;
-  --accent: #0f5c63; --accent-soft: #dcecec; --hl: #f3d65a; --hl-ink: #4f430c; --danger: #b23a2b;
-  --f-ko: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
-  --f-en: "Source Serif 4", Georgia, serif;
-  color-scheme: light;
-}
-@media (prefers-color-scheme: dark) { :root {
-  --bg: #11181c; --paper: #182227; --ink: #e5ecee; --muted: #93a3aa; --line: #2b383e;
-  --accent: #6cc3c8; --accent-soft: #1d3436; --hl: #c9ac2e; --hl-ink: #241e02; --danger: #e27463; color-scheme: dark; } }
+:root { --bg: #eef1f2; --paper: #ffffff; --ink: #18242b; --muted: #5f6f78; --line: #d6dde0; --accent: #0f5c63; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root { --bg: #11181c; --paper: #182227; --ink: #e5ecee; --muted: #93a3aa; --line: #2b383e; --accent: #6cc3c8; color-scheme: dark; } }
 * { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
-body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--f-ko); }
-.wrap { max-width: 860px; margin: 0 auto; padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) calc(48px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); display: grid; gap: 14px; }
-button, input, select { font: inherit; color: inherit; }
-button { cursor: pointer; }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-h1 { font-size: 21px; margin: 0; }
-h1 small { font-weight: 400; color: var(--muted); font-size: 13px; margin-left: 6px; }
-.card { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 10px; }
-.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-.grow { flex: 1; min-width: 0; }
-input[type=text], input[type=url], select { border: 1px solid var(--line); border-radius: 8px; background: var(--bg); padding: 9px 11px; min-width: 0; }
-.btn { border: 1px solid var(--line); background: var(--paper); border-radius: 8px; padding: 8px 12px; font-size: 14px; white-space: nowrap; }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--paper); font-weight: 600; }
-.btn.small { padding: 4px 9px; font-size: 13px; }
-.btn.danger { color: var(--danger); }
-.btn:disabled { opacity: .45; cursor: default; }
-.videos { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
-.vchip { flex: none; max-width: 240px; border: 1px solid var(--line); background: var(--paper); border-radius: 10px; padding: 6px 12px; font-size: 13px; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.vchip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--paper); }
-
-.player { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 10px; overflow: hidden; }
-.player > div, .player iframe { position: absolute; inset: 0; width: 100%; height: 100%; }
-.player .empty { display: grid; place-items: center; color: #9aa; font-size: 14px; text-align: center; padding: 16px; }
-
-.status { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
-.now { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.now b { color: var(--ink); }
-.now-label { font-family: var(--f-en); font-size: 19px; line-height: 1.35; min-height: 1.35em; }
-.dots { display: flex; gap: 4px; flex-wrap: wrap; }
-.dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--line); }
-.dots i.on { background: var(--accent); }
-.controls { display: grid; grid-template-columns: 1fr 1.4fr 1fr; gap: 8px; }
-.controls .btn { padding: 12px 8px; font-size: 15px; }
-.settings { display: flex; gap: 14px; flex-wrap: wrap; font-size: 14px; color: var(--muted); }
-.settings label { display: inline-flex; align-items: center; gap: 6px; }
-.settings select { padding: 5px 8px; }
-.toggle input { accent-color: var(--accent); width: 16px; height: 16px; }
-
-.segs { display: grid; gap: 0; }
-.seg { display: grid; grid-template-columns: 1.6em minmax(0,1fr) auto; gap: 6px 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
-.seg.playing { background: var(--accent-soft); border-radius: 8px; padding-inline: 6px; }
-.seg .n { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.seg .label { width: 100%; font-family: var(--f-en); font-size: 16px; }
-.seg .times { grid-column: 2 / span 2; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; font-size: 13px; color: var(--muted); }
-.time { display: inline-flex; align-items: center; gap: 4px; }
-.time input { width: 76px; text-align: center; font-variant-numeric: tabular-nums; padding: 6px; }
-.seg .acts { display: flex; gap: 6px; }
-.diag { margin: 0; background: var(--hl); color: var(--hl-ink); border-radius: 10px; padding: 10px 12px; font-size: 14px; }
-details.card > summary { cursor: pointer; list-style: none; display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline; }
-details.card > summary::-webkit-details-marker { display: none; }
-details.card > summary::before { content: "▸"; color: var(--accent); }
-details.card[open] > summary::before { content: "▾"; }
-.muted { color: var(--muted); font-size: 13px; font-weight: 400; }
-.steps { margin: 0; padding-left: 20px; font-size: 14px; display: grid; gap: 2px; }
-#trText { width: 100%; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); padding: 9px 11px; font-size: 14px; line-height: 1.5; resize: vertical; }
-.tr-list { max-height: 50vh; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; }
-.tr-list:empty { display: none; }
-.tr-item { display: grid; grid-template-columns: auto 4.2em minmax(0,1fr) auto; gap: 8px; align-items: center; padding: 7px 10px; border-bottom: 1px solid var(--line); font-size: 14px; }
-.tr-item:last-child { border-bottom: 0; }
-.tr-item input { accent-color: var(--accent); width: 17px; height: 17px; }
-.tr-item .tt { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 12px; }
-.tr-item .tx { font-family: var(--f-en); font-size: 15px; min-width: 0; overflow-wrap: anywhere; }
-.tr-item mark { background: var(--hl); color: var(--hl-ink); border-radius: 3px; padding: 0 2px; }
-.tr-item.added { opacity: .5; }
-.hint { font-size: 13px; color: var(--muted); margin: 0; }
-.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(20px + env(safe-area-inset-bottom)); background: var(--ink); color: var(--paper); padding: 9px 16px; border-radius: 8px; font-size: 14px; z-index: 20; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif; display: flex; flex-direction: column; }
+.tabs { flex: none; display: flex; gap: 4px; padding: calc(8px + env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left)); border-bottom: 1px solid var(--line); background: var(--bg); }
+.tabs button { border: 1px solid transparent; border-bottom: 0; background: transparent; color: var(--muted); font: inherit; font-size: 15px; font-weight: 600; padding: 9px 16px 10px; border-radius: 10px 10px 0 0; cursor: pointer; margin-bottom: -1px; }
+.tabs button[aria-selected="true"] { background: var(--paper); color: var(--ink); border-color: var(--line); }
+.tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.tabs .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); margin-left: 6px; vertical-align: middle; }
+.frames { flex: 1; position: relative; min-height: 0; }
+.frames iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: var(--bg); }
 [hidden] { display: none !important; }
-@media (max-width: 560px) {
-  .controls .btn { font-size: 14px; }
-  .time input { width: 68px; }
-}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>구간 반복 플레이어 <small>유튜브에서 원하는 문장만 골라 반복</small></h1>
-
-  <div class="card">
-    <form class="row" id="loadForm">
-      <input type="url" id="url" class="grow" placeholder="유튜브 주소 붙여넣기 (youtube.com/watch?v=… 또는 youtu.be/…)" autocomplete="off">
-      <button class="btn primary" type="submit">불러오기</button>
-    </form>
-    <div class="videos" id="videos"></div>
-  </div>
-
-  <div class="player"><div id="yt"><div class="empty" id="ytEmpty">위에 유튜브 주소를 넣으면 여기에 영상이 나와요.</div></div></div>
-
-  <p class="diag" id="diag" hidden></p>
-  <div class="card" id="playCard">
-    <div class="status">
-      <div class="now" id="now">구간을 추가하면 재생할 수 있어요.</div>
-      <div class="dots" id="dots" aria-hidden="true"></div>
-    </div>
-    <div class="now-label" id="nowLabel"></div>
-    <div class="controls">
-      <button class="btn" id="prev">◀ 이전 구간</button>
-      <button class="btn primary" id="play">▶ 처음부터 반복 재생</button>
-      <button class="btn" id="next">다음 구간 ▶</button>
-    </div>
-    <div class="settings">
-      <label for="order">반복 방식 <select id="order"><option value="cycle">전체를 이어서 (1→2→…→처음)</option><option value="each">구간마다 따로</option></select></label>
-      <label for="reps"><select id="reps"></select> 회</label>
-      <label for="gap">반복 사이 쉬기 <select id="gap"><option value="0">없음</option><option value="0.5">0.5초</option><option value="1">1초</option><option value="2">2초</option><option value="3">3초</option></select></label>
-      <label for="rate">속도 <select id="rate"><option value="0.5">0.5배</option><option value="0.75">0.75배</option><option value="1">1배</option><option value="1.25">1.25배</option></select></label>
-      <label class="toggle" for="loopOne"><input type="checkbox" id="loopOne"> 지금 구간만 계속</label>
-    </div>
-  </div>
-
-  <details class="card" id="trCard">
-    <summary><b>자막으로 구간 만들기</b> <span class="muted">유튜브 스크립트를 붙여넣으면 문장별 시간이 자동으로 정리돼요</span></summary>
-    <ol class="steps">
-      <li>컴퓨터에서 유튜브 영상 아래 설명란의 <b>…더보기</b> → 맨 아래 <b>스크립트 표시</b>를 눌러요.</li>
-      <li>오른쪽에 나온 스크립트를 마우스로 처음부터 끝까지 드래그해서 복사해요.</li>
-      <li>아래 칸에 붙여넣어요. <span class="muted">(.srt/.vtt 자막 파일 내용도 돼요)</span></li>
-    </ol>
-    <textarea id="trText" rows="5" placeholder="0:12&#10;Excuse me, where is my gate?&#10;0:15&#10;It's gate 23, on your left."></textarea>
-    <div class="row">
-      <label class="toggle" for="trMerge"><input type="checkbox" id="trMerge" checked> 문장 단위로 합치기</label>
-      <input type="text" id="trFind" class="grow" placeholder="단어로 찾기 (예: gate, boarding)" autocomplete="off">
-    </div>
-    <p class="hint" id="trInfo"></p>
-    <div class="tr-list" id="trList"></div>
-    <div class="row">
-      <button class="btn small" id="trAll">보이는 문장 모두 선택</button>
-      <button class="btn small" id="trNone">선택 해제</button>
-      <span class="grow"></span>
-      <button class="btn primary" id="trAdd" disabled>선택한 문장을 구간으로 추가</button>
-    </div>
-  </details>
-
-  <div class="card">
-    <div class="row" style="justify-content: space-between">
-      <b>구간 목록</b>
-      <div class="row">
-        <button class="btn small" id="share">링크로 내보내기</button>
-        <button class="btn small danger" id="delVideo">이 영상 삭제</button>
-      </div>
-    </div>
-    <p class="hint">영상을 보다가 문장이 시작될 때 <b>지금</b>을 눌러 시작을, 끝날 때 끝의 <b>지금</b>을 누르세요. 시간은 직접 고쳐도 돼요(예: 1:23.5).</p>
-    <div class="segs" id="segs"></div>
-    <button class="btn" id="addSeg">+ 구간 추가 (지금 위치에서 시작)</button>
-  </div>
+<nav class="tabs" role="tablist" aria-label="연습 도구">
+  <button role="tab" id="tab-cards" aria-controls="f-cards" data-tab="cards">문장 가림판</button>
+  <button role="tab" id="tab-repeat" aria-controls="f-repeat" data-tab="repeat">구간 반복</button>
+</nav>
+<div class="frames">
+  <iframe id="f-cards" title="문장 가림판" src="cards.html"></iframe>
+  <iframe id="f-repeat" title="구간 반복" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen hidden></iframe>
 </div>
-<div class="toast" id="toast" hidden></div>
-
 <script>
-/* ---------- storage ---------- */
-const KEY = "ytRepeat.v1";
-let state = { videos: [], current: null, reps: 10, gap: 1, rate: 1, order: "cycle" };
-try { Object.assign(state, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch (e) {}
-function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
-
-const $ = id => document.getElementById(id);
-const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-let toastT;
-function toast(m) { const t = $("toast"); t.textContent = m; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 2200); }
-
-function parseVid(u) {
-  u = (u || "").trim();
-  if (/^[\w-]{11}$/.test(u)) return u;
-  const m = u.match(/(?:youtu\.be\/|[?&]v=|\/shorts\/|\/embed\/|\/live\/)([\w-]{11})/);
-  return m ? m[1] : null;
-}
-function fmt(t) {
-  if (t == null || isNaN(t)) return "";
-  const m = Math.floor(t / 60), s = t - m * 60;
-  return m + ":" + (s < 10 ? "0" : "") + s.toFixed(1);
-}
-function parseTime(s) {
-  s = String(s).trim();
-  if (!s) return null;
-  const parts = s.split(":").map(Number);
-  if (parts.some(isNaN)) return null;
-  return parts.reduce((a, b) => a * 60 + b, 0);
-}
-const cur = () => state.videos.find(v => v.vid === state.current) || null;
-
-/* ---------- import from a shared link (#d=...) ---------- */
-function b64enc(str) { return btoa(unescape(encodeURIComponent(str))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); }
-function b64dec(s) { s = s.replace(/-/g, "+").replace(/_/g, "/"); return decodeURIComponent(escape(atob(s))); }
-function importFromHash() {
-  const m = location.hash.match(/^#d=(.+)$/);
-  if (!m) return;
-  try {
-    const v = JSON.parse(b64dec(m[1]));
-    if (!v || !parseVid(v.vid)) throw 0;
-    const clean = { vid: v.vid, title: String(v.title || ""), segs: (v.segs || []).map(x => ({ s: +x.s || 0, e: +x.e || 0, label: String(x.label || "") })) };
-    const i = state.videos.findIndex(x => x.vid === clean.vid);
-    if (i >= 0) state.videos[i] = clean; else state.videos.push(clean);
-    state.current = clean.vid; save();
-    toast("공유받은 구간을 불러왔어요");
-  } catch (e) { toast("링크의 구간 정보를 읽지 못했어요"); }
-  history.replaceState(null, "", location.pathname + location.search);
-}
-importFromHash();
-
-/* ---------- YouTube player ---------- */
-let player = null, ready = false, pendingVid = null;
-window.onYouTubeIframeAPIReady = () => { const v = pendingVid || state.current; if (v) mountPlayer(v); };
-function mountPlayer(vid) {
-  if (!window.YT || !YT.Player) { pendingVid = vid; return; }
-  if (player && ready) { player.cueVideoById(vid); return; }
-  $("yt").innerHTML = "<div id='ytInner'></div>";
-  ready = false;
-  player = new YT.Player("ytInner", {
-    videoId: vid,
-    playerVars: Object.assign({ playsinline: 1, rel: 0, modestbranding: 1 }, /^https?:$/.test(location.protocol) ? { origin: location.origin } : {}),
-    host: "https://www.youtube.com",
-    events: {
-      onError: e => {
-        const msg = (e.data === 101 || e.data === 150) ? "이 영상은 올린 사람이 다른 사이트에서 재생을 막아뒀어요. 다른 영상을 써주세요."
-          : e.data === 153 ? "유튜브가 이 페이지 주소를 확인하지 못했어요. 파일을 직접 열지 말고 GitHub Pages 주소(https://…github.io/…)로 열어주세요."
-          : e.data === 100 ? "영상을 찾을 수 없어요. 삭제됐거나 비공개일 수 있어요."
-          : "영상을 재생할 수 없어요 (오류 " + e.data + ").";
-        showPlayerMsg(msg);
-      },
-      onReady: () => { ready = true; try { player.setPlaybackRate(+state.rate); } catch (e) {} fillTitle(); },
-      onStateChange: e => { if (e.data === YT.PlayerState.PLAYING) fillTitle(); if (e.data === YT.PlayerState.PAUSED && run.on && !run.waiting) { run.on = false; renderStatus(); } }
-    }
-  });
-}
-function showPlayerMsg(m) { toast(m); $("diag").textContent = m; $("diag").hidden = false; }
-function fillTitle() {
-  const v = cur();
-  if (!v || !player || !player.getVideoData) return;
-  const t = (player.getVideoData() || {}).title;
-  if (t && v.title !== t) { v.title = t; save(); renderVideos(); }
-}
-const now = () => (player && ready && player.getCurrentTime) ? player.getCurrentTime() : 0;
-
-/* ---------- repeat engine ---------- */
-const run = { on: false, idx: 0, count: 0, waiting: false, timer: null };
-function startSeg(idx) {
-  const v = cur(); if (!v || !v.segs[idx] || !ready) return;
-  const sg = v.segs[idx];
-  if (!(sg.e > sg.s)) { toast(`${idx + 1}번 구간의 끝 시간이 시작보다 늦어야 해요`); stopRun(); return; }
-  run.idx = idx; run.on = true; run.waiting = false; run.startedAt = Date.now();
-  try { player.setPlaybackRate(+state.rate); } catch (e) {}
-  player.seekTo(sg.s, true); player.playVideo();
-  renderStatus(); renderSegs();
-}
-function stopRun() { run.on = false; run.waiting = false; clearTimeout(run.timer); if (player && ready) player.pauseVideo(); renderStatus(); renderSegs(); }
-setInterval(() => {
-  if (!run.on || run.waiting || !ready) return;
-  if (Date.now() - (run.startedAt || 0) < 450) return; // let the seek land before checking the end
-  const v = cur(); const sg = v && v.segs[run.idx];
-  if (!sg) return stopRun();
-  const t = now();
-  if (t >= sg.e - 0.05 || t < sg.s - 1.5) {
-    const reps = +state.reps;
-    const loopOne = $("loopOne").checked;
-    let nextIdx = run.idx;
-    if (loopOne) {
-      run.count++;
-    } else if (state.order === "cycle") {
-      // play 1 → 2 → … → last, then start the next round
-      nextIdx = run.idx + 1;
-      if (nextIdx >= v.segs.length) {
-        nextIdx = 0; run.count++;
-        if (run.count >= reps) { stopRun(); run.idx = 0; run.count = 0; toast(`전체 구간 ${reps}바퀴 반복을 마쳤어요`); renderStatus(); return; }
-      }
-    } else {
-      run.count++;
-      if (run.count >= reps) {
-        nextIdx = run.idx + 1; run.count = 0;
-        if (nextIdx >= v.segs.length) { stopRun(); run.idx = 0; toast("모든 구간 반복을 마쳤어요"); renderStatus(); return; }
-      }
-    }
-    run.waiting = true; player.pauseVideo(); renderStatus();
-    run.timer = setTimeout(() => { if (run.on) startSeg(nextIdx); }, (+state.gap) * 1000 + 50);
+// Both tools stay loaded, so a video keeps its place while you switch tabs.
+const TABS = ["cards", "repeat"];
+const shared = location.hash.startsWith("#d=") ? location.hash : "";
+let repeatLoaded = false;
+function show(name) {
+  if (!TABS.includes(name)) name = "cards";
+  if (name === "repeat" && !repeatLoaded) {
+    document.getElementById("f-repeat").src = "repeat.html" + shared;
+    repeatLoaded = true;
   }
-}, 80);
-
-/* ---------- render ---------- */
-function renderVideos() {
-  $("videos").innerHTML = state.videos.map(v => `<button class="vchip" data-vid="${v.vid}" aria-pressed="${v.vid === state.current}" title="${esc(v.title || v.vid)}">${esc(v.title || v.vid)}</button>`).join("");
-  $("ytEmpty") && ($("ytEmpty").hidden = false);
-}
-function renderStatus() {
-  const v = cur();
-  const n = v ? v.segs.length : 0;
-  $("play").textContent = run.on ? "❚❚ 멈춤" : (run.count || run.idx ? "▶ 이어서 재생" : "▶ 처음부터 반복 재생");
-  ["play", "prev", "next"].forEach(id => $(id).disabled = !n);
-  if (!n) { $("now").textContent = v ? "구간을 추가하면 재생할 수 있어요." : "영상을 먼저 불러오세요."; $("nowLabel").textContent = ""; $("dots").innerHTML = ""; return; }
-  const reps = $("loopOne").checked ? "∞" : state.reps;
-  const cycle = state.order === "cycle" && !$("loopOne").checked;
-  const shownCount = cycle ? Math.min(run.count + 1, +state.reps) : (Math.min(run.count + (run.on ? 1 : 0), +state.reps) || 0);
-  $("now").innerHTML = cycle
-    ? `<b>${shownCount}</b> / ${reps}바퀴 · 구간 <b>${run.idx + 1}</b> / ${n}`
-    : `구간 <b>${run.idx + 1}</b> / ${n} · 반복 <b>${shownCount}</b> / ${reps}`;
-  $("nowLabel").textContent = v.segs[run.idx] ? v.segs[run.idx].label : "";
-  $("dots").innerHTML = $("loopOne").checked ? "" : Array.from({ length: +state.reps }, (_, i) => `<i class="${i < (cycle ? run.count + (run.on ? 1 : 0) : shownCount) ? "on" : ""}"></i>`).join("");
-}
-function renderSegs() {
-  const v = cur();
-  $("delVideo").disabled = !v; $("share").disabled = !v; $("addSeg").disabled = !v;
-  if (!v) { $("segs").innerHTML = ""; return; }
-  $("segs").innerHTML = v.segs.length ? v.segs.map((sg, i) => `
-    <div class="seg${run.on && run.idx === i ? " playing" : ""}" data-i="${i}">
-      <span class="n">${i + 1}</span>
-      <input type="text" class="label" id="lab${i}" value="${esc(sg.label)}" placeholder="문장 메모 (예: Could we sit together?)">
-      <div class="acts"><button class="btn small" data-act="playOne">▶</button><button class="btn small danger" data-act="del" aria-label="구간 삭제">✕</button></div>
-      <div class="times">
-        <span class="time">시작 <input type="text" inputmode="decimal" id="s${i}" data-f="s" value="${fmt(sg.s)}"><button class="btn small" data-act="setNow" data-f="s">지금</button></span>
-        <span class="time">끝 <input type="text" inputmode="decimal" id="e${i}" data-f="e" value="${fmt(sg.e)}"><button class="btn small" data-act="setNow" data-f="e">지금</button></span>
-        <span>${sg.e > sg.s ? (sg.e - sg.s).toFixed(1) + "초" : "끝 시간을 정해주세요"}</span>
-      </div>
-    </div>`).join("") : `<p class="hint">아직 구간이 없어요. 영상을 재생하다가 아래 버튼으로 추가하세요.</p>`;
-}
-function renderAll() {
-  renderVideos(); renderSegs(); renderStatus();
-  $("order").value = state.order || "cycle"; $("reps").value = state.reps; $("gap").value = state.gap; $("rate").value = state.rate;
-}
-$("reps").innerHTML = [1, 2, 3, 5, 7, 10, 15, 20, 30].map(n => `<option value="${n}">${n}</option>`).join("");
-
-/* ---------- events ---------- */
-$("loadForm").addEventListener("submit", e => {
-  e.preventDefault();
-  const vid = parseVid($("url").value);
-  if (!vid) { toast("유튜브 주소를 확인해 주세요"); return; }
-  if (!state.videos.some(v => v.vid === vid)) state.videos.push({ vid, title: "", segs: [] });
-  selectVideo(vid); $("url").value = "";
-});
-function selectVideo(vid) {
-  stopRunQuiet(); state.current = vid; run.idx = 0; run.count = 0; save();
-  mountPlayer(vid); renderAll();
-}
-function stopRunQuiet() { run.on = false; run.waiting = false; clearTimeout(run.timer); }
-$("videos").addEventListener("click", e => { const b = e.target.closest(".vchip"); if (b) selectVideo(b.dataset.vid); });
-
-$("play").onclick = () => {
-  if (!ready) { toast("영상이 아직 준비 중이에요"); return; }
-  if (run.on) { stopRun(); return; }
-  startSeg(run.idx || 0);
-};
-$("prev").onclick = () => { const v = cur(); if (!v) return; if (state.order !== "cycle") run.count = 0; const i = Math.max(0, run.idx - 1); run.on ? startSeg(i) : (run.idx = i, renderStatus(), renderSegs()); };
-$("next").onclick = () => { const v = cur(); if (!v) return; if (state.order !== "cycle") run.count = 0; const i = Math.min(v.segs.length - 1, run.idx + 1); run.on ? startSeg(i) : (run.idx = i, renderStatus(), renderSegs()); };
-$("reps").onchange = e => { state.reps = +e.target.value; save(); renderStatus(); };
-$("gap").onchange = e => { state.gap = +e.target.value; save(); };
-$("rate").onchange = e => { state.rate = +e.target.value; save(); try { player.setPlaybackRate(state.rate); } catch (err) {} };
-$("loopOne").onchange = () => renderStatus();
-$("order").onchange = e => { state.order = e.target.value; run.count = 0; save(); renderStatus(); };
-
-$("addSeg").onclick = () => {
-  const v = cur(); if (!v) return;
-  const t = Math.max(0, now() - 0.3);
-  v.segs.push({ s: +t.toFixed(1), e: 0, label: "" }); save(); renderSegs(); renderStatus();
-  const last = $("lab" + (v.segs.length - 1)); if (last) last.focus({ preventScroll: false });
-};
-$("segs").addEventListener("click", e => {
-  const b = e.target.closest("[data-act]"); if (!b) return;
-  const v = cur(); const i = +b.closest(".seg").dataset.i; const sg = v.segs[i];
-  if (b.dataset.act === "setNow") { sg[b.dataset.f] = +now().toFixed(1); save(); renderSegs(); renderStatus(); }
-  else if (b.dataset.act === "playOne") { run.count = 0; startSeg(i); }
-  else if (b.dataset.act === "del") {
-    if (b.dataset.armed) { v.segs.splice(i, 1); if (run.idx >= v.segs.length) run.idx = Math.max(0, v.segs.length - 1); stopRunQuiet(); save(); renderSegs(); renderStatus(); }
-    else { b.dataset.armed = "1"; b.textContent = "삭제?"; setTimeout(() => { if (b.isConnected) { delete b.dataset.armed; b.textContent = "✕"; } }, 2500); }
+  for (const t of TABS) {
+    document.getElementById("f-" + t).hidden = t !== name;
+    document.getElementById("tab-" + t).setAttribute("aria-selected", String(t === name));
   }
-});
-$("segs").addEventListener("change", e => {
-  const inp = e.target; const segEl = inp.closest(".seg"); if (!segEl) return;
-  const v = cur(); const sg = v.segs[+segEl.dataset.i];
-  if (inp.classList.contains("label")) { sg.label = inp.value; save(); renderStatus(); return; }
-  const t = parseTime(inp.value);
-  if (t == null) { toast("시간은 1:23.5 또는 83.5 처럼 적어주세요"); inp.value = fmt(sg[inp.dataset.f]); return; }
-  sg[inp.dataset.f] = +t.toFixed(1); save(); renderSegs(); renderStatus();
-});
-
-$("delVideo").onclick = e => {
-  const b = e.currentTarget, v = cur(); if (!v) return;
-  if (!b.dataset.armed) { b.dataset.armed = "1"; b.textContent = "정말 삭제할까요? 한 번 더 누르세요"; setTimeout(() => { delete b.dataset.armed; b.textContent = "이 영상 삭제"; }, 3000); return; }
-  delete b.dataset.armed; b.textContent = "이 영상 삭제";
-  stopRunQuiet();
-  state.videos = state.videos.filter(x => x.vid !== v.vid);
-  state.current = state.videos[0] ? state.videos[0].vid : null; save();
-  if (state.current) mountPlayer(state.current);
-  else { if (player && player.destroy) player.destroy(); player = null; ready = false; $("yt").innerHTML = "<div class='empty' id='ytEmpty'>위에 유튜브 주소를 넣으면 여기에 영상이 나와요.</div>"; }
-  renderAll();
-};
-$("share").onclick = async () => {
-  const v = cur(); if (!v) return;
-  const link = location.origin + location.pathname + "#d=" + b64enc(JSON.stringify({ vid: v.vid, title: v.title, segs: v.segs }));
-  try { await navigator.clipboard.writeText(link); toast("링크를 복사했어요. 휴대폰에서 열면 구간이 그대로 들어와요"); }
-  catch (e) { prompt("이 링크를 복사하세요", link); }
-};
-
-/* ---------- build segments from a pasted YouTube transcript ---------- */
-const TS = /^(\d{1,2}:)?\d{1,2}:\d{2}(?:[.,]\d+)?$/;
-function tsToSec(s) { return s.replace(",", ".").split(":").map(Number).reduce((a, b) => a * 60 + b, 0); }
-function parseTranscript(raw) {
-  const lines = String(raw).replace(/\r/g, "").split("\n").map(l => l.trim());
-  const out = [];
-  const cueRe = /^((?:\d{1,2}:)?\d{1,2}:\d{2}(?:[.,]\d+)?)\s*-->\s*((?:\d{1,2}:)?\d{1,2}:\d{2}(?:[.,]\d+)?)/;
-  if (lines.some(l => cueRe.test(l))) {          // .srt / .vtt
-    let curCue = null;
-    for (const l of lines) {
-      const m = l.match(cueRe);
-      if (m) { curCue = { s: tsToSec(m[1]), e: tsToSec(m[2]), text: "" }; out.push(curCue); continue; }
-      if (!l || /^\d+$/.test(l) || /^WEBVTT/.test(l) || !curCue) { if (!l) curCue = curCue && curCue.text ? null : curCue; continue; }
-      curCue.text += (curCue.text ? " " : "") + l.replace(/<[^>]+>/g, "");
-    }
-    return out.filter(c => c.text);
-  }
-  let pending = null;
-  for (const l of lines) {
-    if (!l) continue;
-    if (/^(\d+\s*(시간|분|초)\s*)+$/.test(l) || /^\d+\s*(hours?|minutes?|seconds?)(,?\s*\d+\s*(hours?|minutes?|seconds?))*$/i.test(l)) continue; // screen-reader labels
-    if (/^(스크립트|transcript|챕터|chapters?|검색|search)/i.test(l) && !pending) continue;
-    const inline = l.match(/^((?:\d{1,2}:)?\d{1,2}:\d{2})\s+(.+)$/);
-    if (inline) { pending = { s: tsToSec(inline[1]), text: inline[2] }; out.push(pending); continue; }
-    if (TS.test(l)) { pending = { s: tsToSec(l), text: "" }; out.push(pending); continue; }
-    if (pending) pending.text += (pending.text ? " " : "") + l;
-  }
-  const items = out.filter(c => c.text).map(c => ({ s: c.s, text: c.text.replace(/\s+/g, " ").replace(/^\[.*?\]\s*/, "").trim() })).filter(c => c.text);
-  items.forEach((c, i) => c.e = items[i + 1] ? Math.min(items[i + 1].s, c.s + 10) : c.s + 4); // a long silence should not stretch a line
-  return items;
+  try { localStorage.setItem("practice.tab", name); } catch (e) {}
+  history.replaceState(null, "", "#" + name);
 }
-function mergeSentences(items) {
-  const res = []; let acc = null;
-  for (const it of items) {
-    if (!acc) acc = { s: it.s, e: it.e, text: it.text };
-    else { acc.text += " " + it.text; acc.e = it.e; }
-    if (/[.?!]["')\]]?$/.test(acc.text) || acc.e - acc.s > 20) { res.push(acc); acc = null; }
-  }
-  if (acc) res.push(acc);
-  return res;
-}
-let trItems = [], trChecked = new Set(), trAdded = new Set();
-function trBuild() {
-  let items = parseTranscript($("trText").value);
-  if ($("trMerge").checked) items = mergeSentences(items);
-  trItems = items.map(x => ({ s: Math.max(0, +(x.s - 0.2).toFixed(1)), e: +(x.e + 0.1).toFixed(1), text: x.text }));
-  trChecked = new Set(); trAdded = new Set();
-  trRender();
-}
-function trRender() {
-  const q = $("trFind").value.trim().toLowerCase();
-  const raw = $("trText").value.trim();
-  if (!raw) { $("trInfo").textContent = ""; $("trList").innerHTML = ""; $("trAdd").disabled = true; return; }
-  if (!trItems.length) { $("trInfo").textContent = "시간이 있는 줄을 찾지 못했어요. 스크립트를 시간까지 함께 복사했는지 확인해 주세요."; $("trList").innerHTML = ""; $("trAdd").disabled = true; return; }
-  const shown = trItems.map((x, i) => ({ x, i })).filter(({ x }) => !q || x.text.toLowerCase().includes(q));
-  $("trInfo").textContent = `문장 ${trItems.length}개` + (q ? ` 중 '${$("trFind").value.trim()}' 포함 ${shown.length}개` : "") + (trChecked.size ? ` · ${trChecked.size}개 선택` : "");
-  const hl = s => { const e = esc(s); if (!q) return e; return e.replace(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"), m => `<mark>${m}</mark>`); };
-  $("trList").innerHTML = shown.map(({ x, i }) => `
-    <label class="tr-item${trAdded.has(i) ? " added" : ""}" for="tr${i}">
-      <input type="checkbox" id="tr${i}" data-i="${i}" ${trChecked.has(i) ? "checked" : ""}>
-      <span class="tt">${fmt(x.s)}</span>
-      <span class="tx">${hl(x.text)}</span>
-      <button class="btn small" type="button" data-prev="${i}" title="이 부분 들어보기">▶</button>
-    </label>`).join("");
-  $("trAdd").disabled = !trChecked.size || !cur();
-}
-$("trText").addEventListener("input", () => { clearTimeout(window._trT); window._trT = setTimeout(trBuild, 250); });
-$("trMerge").addEventListener("change", trBuild);
-$("trFind").addEventListener("input", trRender);
-$("trList").addEventListener("change", e => { const i = +e.target.dataset.i; if (isNaN(i)) return; e.target.checked ? trChecked.add(i) : trChecked.delete(i); trRender(); });
-$("trList").addEventListener("click", e => {
-  const b = e.target.closest("[data-prev]"); if (!b) return;
-  e.preventDefault();
-  if (!ready) { toast("영상을 먼저 불러오세요"); return; }
-  const x = trItems[+b.dataset.prev]; stopRunQuiet();
-  player.seekTo(x.s, true); player.playVideo();
-});
-$("trAll").onclick = () => { const q = $("trFind").value.trim().toLowerCase(); trItems.forEach((x, i) => { if (!q || x.text.toLowerCase().includes(q)) trChecked.add(i); }); trRender(); };
-$("trNone").onclick = () => { trChecked = new Set(); trRender(); };
-$("trAdd").onclick = () => {
-  const v = cur(); if (!v) { toast("영상을 먼저 불러오세요"); return; }
-  const picks = [...trChecked].sort((a, b) => a - b);
-  picks.forEach(i => { const x = trItems[i]; v.segs.push({ s: x.s, e: x.e, label: x.text }); trAdded.add(i); });
-  v.segs.sort((a, b) => a.s - b.s);
-  trChecked = new Set(); save(); renderSegs(); renderStatus(); trRender();
-  toast(`${picks.length}개 구간을 추가했어요`);
-};
-
-renderAll();
-const tag = document.createElement("script"); tag.src = "https://www.youtube.com/iframe_api"; document.head.appendChild(tag);
-tag.onerror = () => showPlayerMsg("유튜브 플레이어를 불러오지 못했어요. 인터넷 연결을 확인하거나, 미리보기 창이 아닌 브라우저(사파리·크롬)에서 GitHub Pages 주소로 열어주세요.");
-setTimeout(() => {
-  if (!(window.YT && YT.Player)) showPlayerMsg("유튜브 플레이어가 열리지 않아요. 미리보기 창이나 내려받은 파일로 열면 막혀요. GitHub Pages 주소로 사파리·크롬에서 열어주세요.");
-  else if (pendingVid && !player) mountPlayer(pendingVid);
-}, 6000);
-if (location.protocol === "file:") showPlayerMsg("파일을 직접 열면 유튜브가 재생을 막아요. GitHub에 올린 뒤 https://…github.io/yt-repeat/ 주소로 열어주세요.");
+document.querySelector(".tabs").addEventListener("click", e => { const b = e.target.closest("[data-tab]"); if (b) show(b.dataset.tab); });
+let start = shared ? "repeat" : location.hash.slice(1);
+if (!TABS.includes(start)) { try { start = localStorage.getItem("practice.tab") || "cards"; } catch (e) { start = "cards"; } }
+show(start);
 </script>
 </body>
 </html>

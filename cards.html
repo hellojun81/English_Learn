@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>문장 가림판</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+/* Layout: one study column; sticky control strip; each phrase is a two-sided row where either side can be taped over */
+:root {
+  --bg: #eef1f2;
+  --paper: #ffffff;
+  --ink: #18242b;
+  --muted: #5f6f78;
+  --line: #d6dde0;
+  --accent: #0f5c63;
+  --accent-soft: #dcecec;
+  --tape: #f3d65a;
+  --tape-ink: #4f430c;
+  --ok: #2f7d4f;
+  --danger: #b23a2b;
+  --f-en: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --f-ko: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #11181c; --paper: #182227; --ink: #e5ecee; --muted: #93a3aa; --line: #2b383e;
+  --accent: #6cc3c8; --accent-soft: #1d3436; --tape: #c9ac2e; --tape-ink: #241e02;
+  --ok: #6cc28c; --danger: #e27463; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #11181c; --paper: #182227; --ink: #e5ecee; --muted: #93a3aa; --line: #2b383e;
+  --accent: #6cc3c8; --accent-soft: #1d3436; --tape: #c9ac2e; --tape-ink: #241e02;
+  --ok: #6cc28c; --danger: #e27463; color-scheme: dark }
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; font-size: 15px; background: var(--bg); color: var(--ink); font-family: var(--f-ko); font-size: 15px; line-height: 1.5; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.wrap { max-width: 860px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 64px; }
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+header.top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+h1 { font-size: 22px; margin: 0; letter-spacing: -0.01em; }
+h1 small { font-weight: 400; color: var(--muted); font-size: 13px; margin-left: 6px; }
+.saved-state { font-size: 12px; color: var(--muted); }
+.hdr-right { display: inline-flex; gap: 10px; align-items: center; }
+.ai-panel { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 8px; margin-bottom: 14px; }
+.ai-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.ai-row input { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); padding: 9px 11px; font-family: ui-monospace, monospace; }
+
+.sets { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 14px; scrollbar-width: thin; }
+.chip { flex: none; border: 1px solid var(--line); background: var(--paper); border-radius: 10px; padding: 6px 14px; font-size: 14px; white-space: nowrap; display: grid; justify-items: start; align-content: center; gap: 1px; line-height: 1.3; text-align: left; }
+.chip small { font-size: 11px; opacity: .65; font-variant-numeric: tabular-nums; }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--paper); }
+.chip.add { border-style: dashed; color: var(--accent); }
+
+.btn { border: 1px solid var(--line); background: var(--paper); border-radius: 8px; padding: 8px 12px; font-size: 14px; }
+.btn.primary { background: var(--accent); color: var(--paper); border-color: var(--accent); font-weight: 600; }
+.btn.danger { color: var(--danger); }
+.btn.danger.solid { background: var(--danger); color: var(--paper); border-color: var(--danger); }
+.btn:disabled { opacity: .45; cursor: default; }
+
+.banner { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: var(--accent-soft); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; font-size: 14px; }
+
+.bar { position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--ask-h, 0px)); z-index: 5; background: var(--bg); padding-block: 10px; display: grid; gap: 10px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+.bar-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; background: var(--paper); }
+.seg button { border: 0; background: transparent; padding: 8px 14px; font-size: 14px; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); font-weight: 600; }
+.toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--muted); padding: 6px 4px; }
+.toggle input { accent-color: var(--accent); width: 16px; height: 16px; }
+.progress { margin-left: auto; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.meter { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
+.meter i { display: block; height: 100%; background: var(--ok); transition: width .3s; }
+
+.section-name { font-size: 12px; font-weight: 600; letter-spacing: .06em; color: var(--accent); margin: 22px 0 6px; display: flex; gap: 8px; align-items: baseline; }
+.section-name span { color: var(--muted); font-weight: 400; letter-spacing: 0; }
+
+.row { display: grid; grid-template-columns: 34px 1.8em minmax(0,1fr) minmax(0,1fr) auto; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.row.known .num { color: var(--ok); }
+.num { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; text-align: left; }
+.en { font-family: var(--f-en); font-size: 17px; line-height: 1.4; min-width: 0; }
+.ko { font-size: 15px; min-width: 0; color: var(--ink); }
+.cell { min-height: 2.2em; display: flex; align-items: center; }
+.cover { width: 100%; min-height: 2.4em; border: 0; border-radius: 6px; text-align: left; padding: 6px 10px; font-size: 13px; color: var(--tape-ink);
+  background: repeating-linear-gradient(-45deg, var(--tape) 0 10px, color-mix(in srgb, var(--tape) 82%, var(--paper)) 10px 20px); }
+.cover:hover { filter: brightness(1.04); }
+.cell.peek { animation: reveal .25s ease-out; }
+@keyframes reveal { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: none; } }
+.mark { border: 1px solid var(--line); background: var(--paper); border-radius: 999px; width: 34px; height: 34px; display: grid; place-items: center; color: var(--muted); }
+.mark[aria-pressed="true"] { background: var(--ok); border-color: var(--ok); color: var(--paper); }
+.mark svg { width: 16px; height: 16px; }
+
+@media (max-width: 620px) {
+  .ask-thread { max-height: 28vh; }
+  .ask { padding: 10px 12px; gap: 8px; }
+  .row { grid-template-columns: 34px 1.5em minmax(0,1fr) auto; column-gap: 8px; row-gap: 6px; }
+  .row .mark { grid-column: 1; grid-row: 1 / span 2; }
+  .row .num { grid-column: 2; grid-row: 1 / span 2; }
+  .row .en { grid-column: 3; grid-row: 1; }
+  .row .ko { grid-column: 3; grid-row: 2; }
+  .row .tools { grid-column: 4; grid-row: 1 / span 2; flex-direction: column; }
+  .progress { margin-left: 0; width: 100%; }
+}
+
+.empty { text-align: center; color: var(--muted); padding: 48px 12px; }
+
+.editor { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: grid; gap: 12px; margin-bottom: 18px; }
+.editor h2 { margin: 0; font-size: 17px; }
+.editor label { font-size: 13px; color: var(--muted); display: grid; gap: 6px; }
+.editor input[type=text], .editor textarea { width: 100%; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); padding: 10px 12px; }
+.editor textarea { min-height: 220px; resize: vertical; font-size: 14px; line-height: 1.55; tab-size: 4; }
+.hint { font-size: 13px; color: var(--muted); margin: 0; }
+.hint code { background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.actions .spacer { flex: 1; }
+.confirm { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 14px; color: var(--danger); }
+.tools { display: flex; gap: 6px; }
+.copybtn { border: 1px solid var(--line); background: var(--paper); border-radius: 999px; width: 34px; height: 34px; display: grid; place-items: center; color: var(--muted); }
+.copybtn svg { width: 16px; height: 16px; }
+.copybtn:hover { color: var(--accent); border-color: var(--accent); }
+.copybtn.done { background: var(--ok); border-color: var(--ok); color: var(--paper); }
+.askbtn { border: 1px solid var(--line); background: var(--paper); border-radius: 999px; width: 34px; height: 34px; display: grid; place-items: center; color: var(--accent); font-weight: 700; font-size: 15px; }
+.askbtn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--paper); }
+.row.asking { background: var(--accent-soft); }
+.ask { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 6; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: grid; gap: 10px; margin-bottom: 16px; box-shadow: 0 6px 18px -10px rgb(0 0 0 / .35); }
+.ask::before { content: ""; position: absolute; left: -1px; right: -1px; bottom: 100%; height: 20px; background: var(--bg); }
+.ask.collapsed .ask-ctx, .ask.collapsed .ask-thread { display: none; }
+.ask-head-btns { display: flex; gap: 6px; }
+.ask-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ask h2 { margin: 0; font-size: 15px; }
+.btn.small { padding: 4px 10px; font-size: 13px; }
+.ask-ctx { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 13px; color: var(--muted); }
+.ctx-pill { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; background: var(--accent-soft); color: var(--ink); border-radius: 8px; padding: 5px 6px 5px 10px; }
+.ctx-pill b { font-family: var(--f-en); font-weight: 600; font-size: 15px; min-width: 0; overflow-wrap: anywhere; }
+.ctx-pill button { border: 0; background: transparent; color: var(--muted); font-size: 16px; width: 24px; height: 24px; border-radius: 5px; flex: none; }
+.suggest { border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 4px 11px; font-size: 13px; color: var(--ink); }
+.suggest:hover { border-color: var(--accent); }
+.ask-thread { display: grid; gap: 10px; max-height: 34vh; overflow-y: auto; padding-right: 4px; }
+.msg { font-size: 14.5px; line-height: 1.65; min-width: 0; overflow-wrap: anywhere; }
+.msg.q { justify-self: end; max-width: 85%; background: var(--ink); color: var(--paper); border-radius: 12px 12px 3px 12px; padding: 8px 12px; }
+.msg.q small { display: block; opacity: .7; font-family: var(--f-en); font-size: 13px; }
+.msg.a { border-left: 3px solid var(--accent); padding: 2px 0 2px 12px; }
+.msg.a em.en { font-family: var(--f-en); font-style: normal; font-weight: 600; }
+.msg.a ul { margin: 4px 0; padding-left: 20px; }
+.msg.a p { margin: 0 0 6px; }
+.msg.err { color: var(--danger); font-size: 14px; }
+.ask-form { display: flex; gap: 8px; align-items: flex-end; }
+.ask-form textarea { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); padding: 9px 12px; resize: vertical; min-height: 44px; line-height: 1.5; }
+.w { cursor: pointer; border-radius: 3px; text-decoration: underline dotted transparent; text-underline-offset: 4px; transition: background .12s; }
+.w:hover { text-decoration-color: var(--accent); }
+.w.active { background: var(--accent-soft); text-decoration-color: var(--accent); }
+.pop { position: absolute; left: 16px; top: 0; z-index: 30; width: min(340px, calc(100% - 32px)); max-width: calc(100vw - 32px); background: var(--paper); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 30px rgb(0 0 0 / .18); padding: 14px 16px; display: grid; gap: 8px; }
+.pop-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; padding-right: 28px; }
+.pop-word { font-family: var(--f-en); font-size: 21px; font-weight: 600; }
+.pop-ipa { font-size: 13px; color: var(--muted); }
+.pop-pos { font-size: 12px; color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; padding: 0 8px; }
+.pop-meaning { font-size: 16px; font-weight: 600; }
+.pop-why { font-size: 14px; line-height: 1.6; background: var(--accent-soft); border-radius: 8px; padding: 8px 10px; }
+.pop-why b { display: block; font-size: 12px; color: var(--accent); margin-bottom: 2px; }
+.pop { max-height: 80vh; overflow-y: auto; }
+.pop-note, .pop-lemma { font-size: 14px; color: var(--muted); margin: 0; }
+.pop-ex { font-family: var(--f-en); font-size: 15px; margin: 0; padding-top: 8px; border-top: 1px solid var(--line); }
+.pop-ex span { display: block; font-family: var(--f-ko); font-size: 13px; color: var(--muted); }
+.pop-close { position: absolute; top: 8px; right: 8px; width: 30px; height: 30px; border: 0; background: transparent; color: var(--muted); font-size: 20px; line-height: 1; border-radius: 6px; }
+.pop-loading { color: var(--muted); font-size: 14px; }
+.pop-loading::after { content: ""; display: inline-block; width: 1.2em; text-align: left; animation: dots 1.2s steps(4) infinite; }
+@keyframes dots { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; } }
+.cell.peek { cursor: pointer; }
+.rehide { flex: none; margin-left: 8px; border: 1px dashed var(--tape); background: transparent; color: var(--muted); border-radius: 999px; padding: 1px 9px; font-size: 12px; font-family: var(--f-ko); }
+.cell.peek > span { min-width: 0; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(20px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--paper); padding: 9px 16px; border-radius: 8px; font-size: 14px; z-index: 20; }
+@media (prefers-reduced-motion: reduce) { .cell.peek { animation: none; } .meter i { transition: none; } }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>문장 가림판 <small>한쪽을 가리고 외웠는지 확인 · 영어 단어를 누르면 뜻이 나와요</small></h1>
+    <span class="hdr-right"><span class="saved-state" id="savedState"></span><button class="btn small" id="aiBtn" type="button">AI 설정</button></span>
+  </header>
+  <form class="ai-panel" id="aiPanel" hidden>
+    <b>AI 기능 켜기 (단어 뜻 · AI에게 질문)</b>
+    <p class="hint">Anthropic API 키를 넣으면 단어 설명과 질문 기능이 켜져요. 키는 이 기기의 브라우저에만 저장되고, 쓴 만큼 Anthropic에서 요금이 나와요. 키는 console.anthropic.com → API Keys에서 만들 수 있어요.</p>
+    <div class="ai-row">
+      <input type="password" id="aiKey" placeholder="sk-ant-..." autocomplete="off" spellcheck="false">
+      <button class="btn primary" type="submit">저장</button>
+      <button class="btn danger" type="button" id="aiDel">키 지우기</button>
+    </div>
+    <p class="hint" id="aiState"></p>
+  </form>
+  <section class="ask" id="ask" aria-label="AI에게 질문">
+    <div class="ask-head">
+      <h2>AI에게 문장 질문하기</h2>
+      <div class="ask-head-btns">
+        <button class="btn small" data-act="askClear" id="askClear" hidden>대화 지우기</button>
+        <button class="btn small" data-act="askFold" id="askFold" aria-expanded="true">접기</button>
+      </div>
+    </div>
+    <div class="ask-ctx" id="askCtx"></div>
+    <div class="ask-thread" id="askThread" hidden></div>
+    <form class="ask-form" id="askForm">
+      <textarea id="askInput" rows="2" placeholder="예: Could we sit together? 에서 could를 쓰면 can보다 얼마나 공손해져요?"></textarea>
+      <button type="submit" class="btn primary" id="askSend">질문</button>
+    </form>
+  </section>
+  <nav class="sets" id="sets" aria-label="저장된 세트"></nav>
+  <div id="main"></div>
+</div>
+<div class="toast" id="toast" hidden></div>
+<div class="pop" id="pop" role="dialog" aria-label="단어 설명" hidden></div>
+
+<script>
+const SAMPLE_TITLE = "여행 영어";
+const SAMPLE_TEXT = "1. 공항 체크인 및 탑승\n영어 원문\t한국어 해석\nI'd like to check in.\t체크인하고 싶습니다.\nHere is my passport.\t여기 제 여권입니다.\nOne bag to check, please.\t부칠 짐 하나 있습니다.\nI have one carry-on.\t기내 수하물이 하나 있습니다.\nWindow seat, please.\t창가 좌석으로 주세요.\nAisle seat, please.\t통로 좌석으로 주세요.\nCould we sit together?\t저희가 같이 앉을 수 있을까요?\nWhat's my gate number?\t제 탑승구 번호가 몇 번인가요?\nWhen does boarding start?\t탑승은 언제 시작하나요?\nMay I see your boarding pass?\t탑승권을 보여주시겠어요?\nHere you are.\t여기 있습니다.\nExcuse me, may I get by?\t실례지만 지나가도 될까요?\nWhere is my seat?\t제 좌석은 어디인가요?\nCan I move to a window seat?\t창가 좌석으로 옮겨도 될까요?\nCan I move to an aisle seat?\t통로 좌석으로 옮겨도 될까요?\n\n2. 기내 영어\n영어 원문\t한국어 해석\nPlease fasten your seat belt.\t안전벨트를 매주세요.\nCould I get some water?\t물 좀 주시겠어요?\nOne more blanket, please.\t담요 하나 더 주세요.\nWhat would you like to drink?\t무엇을 마시겠어요?\nCoffee, please.\t커피 주세요.\nWhat would you like to have, chicken or beef?\t닭고기와 소고기 중 무엇을 드시겠어요?\nI'll have beef, please.\t소고기로 주세요.\nCan I recline a little?\t좌석을 조금 뒤로 젖혀도 될까요?\nDo you have headphones?\t헤드폰 있나요?\nCould you give me some medicine?\t약 좀 주시겠어요?\nWhat's the matter?\t어디가 불편하세요?\nI'm airsick.\t비행기 멀미가 나요.\nI have a fever.\t열이 나요.\nPlease return to your seat.\t좌석으로 돌아가 주세요.\nMay I use the restroom?\t화장실을 이용해도 될까요?\n\n3. 수하물 및 세관\n영어 원문\t한국어 해석\nWhere is the baggage claim?\t수하물 찾는 곳은 어디인가요?\nIt's on the first floor.\t1층에 있습니다.\nMy luggage is missing.\t제 짐이 없어졌어요.\nMy luggage is broken.\t제 짐이 파손됐어요.\nHere is my bag tag.\t여기 제 수하물 표입니다.\nAnything to declare?\t신고할 물품이 있나요?\nNothing to declare.\t신고할 물품이 없습니다.\nThese are gifts.\t이것들은 선물입니다.\nI bought it duty-free.\t면세점에서 샀어요.\nHere is the receipt.\t여기 영수증입니다.\n\n4. 입국심사\n영어 원문\t한국어 해석\nWhat's the purpose of your visit?\t방문 목적이 무엇인가요?\nI'm here for tourism.\t관광하러 왔습니다.\nHow long will you stay?\t얼마나 머무르실 건가요?\nI'll stay five days.\t5일 동안 머무를 예정입니다.\nWhere will you stay?\t어디에서 머무르실 건가요?\nI'll stay at this hotel.\t이 호텔에서 머무를 예정입니다.\nDo you have a return ticket?\t돌아가는 항공권이 있나요?\nHow much cash are you carrying?\t현금을 얼마나 가지고 계신가요?\n\n5. 호텔 체크인 및 예약\n영어 원문\t한국어 해석\nI have a reservation.\t예약했습니다.\nUnder this name.\t이 이름으로 예약했습니다.\nCan I check in early?\t일찍 체크인할 수 있나요?\nDo you have a quiet room?\t조용한 객실이 있나요?\nWhat's the Wi-Fi password?\t와이파이 비밀번호가 무엇인가요?\nWhat time is checkout?\t체크아웃은 몇 시인가요?\nCould you keep my luggage?\t제 짐을 맡아주실 수 있나요?\nI'd like to make a reservation.\t예약하고 싶습니다.\nDo you have a room for tonight?\t오늘 밤 묵을 방이 있나요?\nHow many days will you be staying?\t며칠 동안 머무르실 건가요?\nI'd like to stay for three nights.\t3박 하고 싶습니다.\nHow much is the room charge per night?\t객실 요금은 1박에 얼마인가요?\nI'd like a room with a nice view, please.\t전망 좋은 방으로 부탁드립니다.\nI'd like to cancel my reservation.\t예약을 취소하고 싶습니다.\nI'd like to change rooms, please.\t방을 바꾸고 싶습니다.\nCan I have more towels?\t수건을 더 받을 수 있을까요?\nPlease give me a wake-up call at six.\t6시에 모닝콜 부탁드립니다.\nI left my key in the room.\t열쇠를 방에 두고 나왔어요.\n\n6. 호텔 조식 및 식사\n영어 원문\t한국어 해석\nCould we sit by the window?\t창가에 앉아도 될까요?\nTea or coffee?\t차와 커피 중 무엇을 드시겠어요?\nHow would you like your eggs?\t달걀은 어떻게 조리해 드릴까요?\nSunny side up, please.\t한쪽 면만 익힌 달걀 프라이로 주세요.\nScrambled, please.\t스크램블 에그로 주세요.\nCould you clear this plate?\t이 접시 좀 치워주시겠어요?\n\n7. 관광지 및 일상 회화\n영어 원문\t한국어 해석\nWhere is the entrance?\t입구는 어디인가요?\nWhere is the exit?\t출구는 어디인가요?\nWhat time do you open?\t몇 시에 문을 여나요?\nTwo tickets, please.\t표 두 장 주세요.\nCan I take photos?\t사진을 찍어도 되나요?\nCan I take a video?\t동영상을 촬영해도 되나요?\nWhere is the best view?\t전망이 가장 좋은 곳은 어디인가요?\nCould you take our photo?\t저희 사진 좀 찍어주시겠어요?\nWhere are you from?\t어디에서 오셨어요?\nI'm from Korea.\t한국에서 왔어요.\nIs this your first time here?\t여기 처음 오셨나요?\nYes, it's my first time.\t네, 처음이에요.\nHow long are you staying?\t얼마나 머무르세요?\nI'm here for three days.\t3일 동안 머물러요.\n\n8. 식당 예약 및 주문\n영어 원문\t한국어 해석\nHow many in your party?\t일행이 몇 분이세요?\nWe are three.\t세 명입니다.\nWould you like to sit inside or outside?\t실내와 야외 중 어디에 앉으시겠어요?\nI'd like to sit outside on the terrace.\t야외 테라스에 앉고 싶어요.\nI'd like a window seat, please.\t창가 자리로 부탁드립니다.\nCan I see the menu?\t메뉴판 좀 볼 수 있을까요?\nAre you ready to order?\t주문하시겠어요?\nWhat is good here?\t여기서는 어떤 음식이 맛있나요?\nI'll have steak and pasta.\t스테이크와 파스타로 할게요.\nHow would you like your steak?\t스테이크는 어떻게 익혀드릴까요?\nMedium, please.\t미디엄으로 해주세요.\nAnything else?\t더 필요한 건 없으세요?\nThat's all.\t그게 전부예요.\nWould you care for dessert?\t디저트 드시겠어요?\nNo, thank you.\t아니요, 괜찮습니다.\nCan I get some napkins?\t냅킨 좀 주시겠어요?\nCould I have a to-go box, please?\t남은 음식을 포장할 용기 좀 주시겠어요?\nCheck, please.\t계산서 주세요.\n\n9. 쇼핑 및 결제\n영어 원문\t한국어 해석\nMay I help you?\t무엇을 도와드릴까요?\nI'm just looking around.\t그냥 둘러보고 있어요.\nTake your time.\t천천히 둘러보세요.\nHow much is this?\t이거 얼마인가요?\nCan I try this on?\t이거 입어봐도 될까요?\nWhere is the fitting room?\t탈의실이 어디인가요?\nDo you have this in medium?\t이거 미디엄 사이즈 있나요?\nDo you have any other colors?\t다른 색상도 있나요?\nIt doesn't fit me.\t저한테 사이즈가 맞지 않아요.\nDo you have this in a larger size?\t이거 더 큰 사이즈 있나요?\nIs this on sale?\t이거 할인 중인가요?\nI'll take this one.\t이걸로 살게요.\nCan I get a refund?\t환불받을 수 있나요?\nCan I get an exchange?\t교환할 수 있나요?\nHow would you like to pay?\t어떻게 결제하시겠어요?\nI'll pay in cash.\t현금으로 계산할게요.";
+
+const HANGUL = /[가-힣]/;
+function parse(raw) {
+  const sections = [];
+  let cur = null;
+  for (const lineRaw of String(raw).split(/\r?\n/)) {
+    const line = lineRaw.trim();
+    if (!line) continue;
+    let parts = null;
+    if (lineRaw.includes("\t")) parts = lineRaw.split("\t");
+    else if (line.includes(" | ")) parts = line.split(" | ");
+    else if (/\S\s{2,}\S/.test(line)) parts = line.split(/\s{2,}/);
+    if (parts) parts = parts.map(s => s.trim()).filter(Boolean);
+    if (parts && parts.length >= 2) {
+      let a = parts[0], b = parts.slice(1).join(" ");
+      if (/원문|^english$/i.test(a) && /해석|한국어|^korean$/i.test(b)) continue;
+      if (HANGUL.test(a) && !HANGUL.test(b)) [a, b] = [b, a];
+      if (!cur) { cur = { name: "", items: [] }; sections.push(cur); }
+      cur.items.push([a, b]);
+    } else {
+      cur = { name: line.replace(/^\d+\s*[.)]\s*/, ""), items: [] };
+      sections.push(cur);
+    }
+  }
+  return sections.filter(s => s.items.length);
+}
+const countItems = secs => secs.reduce((n, s) => n + s.items.length, 0);
+
+/* ---------- storage: private per-person db, with browser fallback ---------- */
+const LS_KEY = "mungjang.sets.v1";
+const store = {
+  kind: "local", col: null, listeners: [],
+  async init(onChange) {
+    this.onChange = onChange;
+    this.readLocal();
+    onChange();
+
+  },
+  sets: [], ready: false, chains: {},
+  readLocal() {
+    try { this.sets = JSON.parse(localStorage.getItem(LS_KEY) || "[]"); } catch (e) { this.sets = []; }
+    this.ready = true;
+  },
+  writeLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify(this.sets)); } catch (e) {} },
+  save(set) {
+    const body = { title: set.title, raw: set.raw, sections: set.sections, known: set.known || [], createdAt: set.createdAt, updatedAt: Date.now() };
+    const i = this.sets.findIndex(s => s.id === set.id);
+    const full = { id: set.id, ...body };
+    if (i >= 0) this.sets[i] = full; else this.sets.push(full);
+    if (this.kind !== "db") { this.writeLocal(); this.onChange(); return Promise.resolve(); }
+    this.onChange();
+    const prev = this.chains[set.id] || Promise.resolve();
+    const next = prev.catch(() => {}).then(() => this.col.doc(set.id).set(body));
+    this.chains[set.id] = next;
+    return next.catch(e => { toast(e && e.code === "quota_exceeded" ? "저장 공간이 가득 찼어요. 안 쓰는 세트를 지워주세요." : "저장하지 못했어요. 잠시 후 다시 시도해 주세요."); throw e; });
+  },
+  remove(id) {
+    this.sets = this.sets.filter(s => s.id !== id);
+    if (this.kind !== "db") { this.writeLocal(); this.onChange(); return Promise.resolve(); }
+    this.onChange();
+    return this.col.doc(id).delete().catch(() => toast("삭제하지 못했어요. 다시 시도해 주세요."));
+  }
+};
+
+/* ---------- state ---------- */
+let currentId = null;      // id of a saved set, or "sample"
+let view = "study";        // study | new | edit
+let mode = "hideEn";       // all | hideEn | hideKo — every visit starts with English covered
+let hideKnown = false;
+let shuffle = false;
+let order = null;
+let revealed = new Set();
+let confirmDelete = false;
+let askCtx = null, askCtxKo = "";
+let askMsgs = [];
+let askBusy = false, askAbort = null;
+try { const p = JSON.parse(localStorage.getItem("mungjang.prefs") || "{}"); hideKnown = !!p.hideKnown; } catch (e) {}
+function savePrefs() { try { localStorage.setItem("mungjang.prefs", JSON.stringify({ mode, hideKnown, last: currentId })); } catch (e) {} }
+
+const sample = { id: "sample", title: SAMPLE_TITLE, raw: SAMPLE_TEXT, sections: parse(SAMPLE_TEXT), known: [], unsaved: true };
+function currentSet() {
+  if (currentId === "sample") return sample;
+  return store.sets.find(s => s.id === currentId) || null;
+}
+
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const $ = id => document.getElementById(id);
+let toastTimer;
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, 2200); }
+
+function pickCurrent() {
+  const sets = sortedSets();
+  if (currentId === "sample" && sets.length === 0) return;
+  if (currentId && sets.some(s => s.id === currentId)) return;
+  let last = null; try { last = JSON.parse(localStorage.getItem("mungjang.prefs") || "{}").last; } catch (e) {}
+  currentId = (last && sets.some(s => s.id === last)) ? last : (sets[0] ? sets[0].id : "sample");
+}
+function fmtDate(ms) {
+  if (!ms) return "";
+  const d = new Date(ms), p = n => String(n).padStart(2, "0");
+  return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())}`;
+}
+const sortedSets = () => store.sets.slice().sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+
+/* ---------- render ---------- */
+function render() {
+  pickCurrent();
+  $("savedState").textContent = "이 기기에 저장됨";
+  const sets = sortedSets();
+  let chips = sets.map(s => `<button class="chip" data-act="pick" data-id="${esc(s.id)}" aria-pressed="${view === "study" && s.id === currentId}"><span>${esc(s.title)}</span><small>${fmtDate(s.createdAt)}</small></button>`).join("");
+  if (!sets.length) chips += `<button class="chip" data-act="pick" data-id="sample" aria-pressed="${view === "study" && currentId === "sample"}"><span>${esc(SAMPLE_TITLE)} (예시)</span><small>저장 안 됨</small></button>`;
+  chips += `<button class="chip add" data-act="new" aria-pressed="${view === "new"}">+ 새 세트 붙여넣기</button>`;
+  $("sets").innerHTML = chips;
+
+  if (view === "new" || view === "edit") { renderEditor(); return; }
+  const set = currentSet();
+  if (!set) { $("main").innerHTML = `<p class="empty">저장된 세트가 없어요. ‘새 세트 붙여넣기’로 문장을 추가하세요.</p>`; return; }
+  renderStudy(set);
+}
+
+function renderEditor() {
+  const editing = view === "edit" ? currentSet() : null;
+  const title = editing ? editing.title : "";
+  const raw = editing ? editing.raw : "";
+  $("main").innerHTML = `
+  <form class="editor" id="editorForm">
+    <h2>${editing ? "세트 수정" : "새 세트"}</h2>
+    <label for="fTitle">세트 이름
+      <input type="text" id="fTitle" value="${esc(title)}" placeholder="예: 여행 영어, 비즈니스 이메일" maxlength="40">
+    </label>
+    <label for="fRaw">문장 붙여넣기
+      <textarea id="fRaw" placeholder="1. 공항 체크인&#10;I'd like to check in.&#9;체크인하고 싶습니다.&#10;Here is my passport.&#9;여기 제 여권입니다.">${esc(raw)}</textarea>
+    </label>
+    <p class="hint">한 줄에 한 문장. 영어와 한글 사이는 탭(표·엑셀에서 복사하면 자동) 또는 <code> | </code>로 구분해요. 구분자가 없는 줄은 소제목이 됩니다.</p>
+    <p class="hint" id="parseInfo"></p>
+    <div class="actions">
+      <button type="submit" class="btn primary" id="fSave">저장</button>
+      <button type="button" class="btn" data-act="cancel">취소</button>
+    </div>
+  </form>`;
+  const upd = () => {
+    const secs = parse($("fRaw").value);
+    const n = countItems(secs);
+    $("parseInfo").textContent = n ? `인식된 문장 ${n}개 · 소제목 ${secs.filter(s => s.name).length}개` : "아직 인식된 문장이 없어요.";
+    $("fSave").disabled = n === 0;
+  };
+  $("fRaw").addEventListener("input", upd);
+  upd();
+  $("editorForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const rawV = $("fRaw").value;
+    const secs = parse(rawV);
+    if (!countItems(secs)) return;
+    const titleV = $("fTitle").value.trim() || ("세트 " + (store.sets.length + 1));
+    if (editing && editing.id !== "sample") {
+      const keepKnown = (editing.known || []).filter(k => { const [en] = k.split("\u0001"); return secs.some(s => s.items.some(it => it[0] === en)); });
+      store.save({ ...editing, title: titleV, raw: rawV, sections: secs, known: keepKnown });
+      toast("수정했어요");
+    } else {
+      const id = "set-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      store.save({ id, title: titleV, raw: rawV, sections: secs, known: [], createdAt: Date.now() });
+      currentId = id;
+      toast("저장했어요");
+    }
+    view = "study"; resetSession(); savePrefs(); render();
+  });
+  if (!editing) $("fTitle").focus();
+}
+
+const keyOf = it => it[0] + "\u0001" + it[1];
+function resetSession() { revealed = new Set(); order = null; confirmDelete = false; }
+
+function renderStudy(set) {
+  const known = new Set(set.known || []);
+  const total = countItems(set.sections);
+  const knownN = set.sections.reduce((n, s) => n + s.items.filter(it => known.has(keyOf(it))).length, 0);
+  const pct = total ? Math.round(knownN / total * 100) : 0;
+
+  let body = "";
+  let groups = set.sections.map((s, si) => ({ name: s.name, items: s.items.map((it, ii) => ({ it, n: ii + 1, key: keyOf(it) })) }));
+  if (shuffle) {
+    if (!order) { order = groups.flatMap(g => g.items.map(x => x.key)); for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; } }
+    const all = new Map(groups.flatMap(g => g.items).map(x => [x.key, x]));
+    groups = [{ name: "섞어서 보기", items: order.map((k, i) => all.get(k) && { ...all.get(k), n: i + 1 }).filter(Boolean) }];
+  }
+  let shown = 0;
+  for (const g of groups) {
+    const items = hideKnown ? g.items.filter(x => !known.has(x.key)) : g.items;
+    if (!items.length) continue;
+    const gk = g.items.filter(x => known.has(x.key)).length;
+    if (g.name) body += `<div class="section-name">${esc(g.name)} <span>${gk}/${g.items.length}</span></div>`;
+    for (const x of items) {
+      shown++;
+      const isKnown = known.has(x.key);
+      const isRev = revealed.has(x.key);
+      const wasHidden = side => (side === "en" && mode === "hideEn") || (side === "ko" && mode === "hideKo");
+      const cell = (text, side, cls) => {
+        const covered = !isRev && ((side === "en" && mode === "hideEn") || (side === "ko" && mode === "hideKo"));
+        return covered
+          ? `<div class="cell ${cls}"><button class="cover" data-act="reveal" data-key="${esc(x.key)}">탭해서 ${side === "en" ? "영어" : "한글"} 보기</button></div>`
+          : (isRev && wasHidden(side))
+            ? `<div class="cell ${cls} peek" data-act="rehide" data-key="${esc(x.key)}" title="다시 탭하면 가려져요"><span>${side === "en" ? wordify(text) : esc(text)}</span><button class="rehide" data-act="rehide" data-key="${esc(x.key)}">가리기</button></div>`
+            : `<div class="cell ${cls}"><span>${side === "en" ? wordify(text) : esc(text)}</span></div>`;
+      };
+      body += `<div class="row${isKnown ? " known" : ""}${askCtx === x.it[0] ? " asking" : ""}" data-en="${esc(x.it[0])}" data-ko="${esc(x.it[1])}">
+        <button class="mark" data-act="known" data-key="${esc(x.key)}" aria-pressed="${isKnown}" aria-label="외웠어요" title="외웠어요"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3L13 4.5"/></svg></button>
+        <span class="num">${x.n}</span>
+        ${cell(x.it[0], "en", "en")}
+        ${cell(x.it[1], "ko", "ko")}
+        <div class="tools"><button class="copybtn" data-act="copy" aria-label="영어 문장 복사" title="영어 문장 복사"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5V3.8A1.3 1.3 0 0 0 9.2 2.5H3.8A1.3 1.3 0 0 0 2.5 3.8v5.4a1.3 1.3 0 0 0 1.3 1.3h1.7"/></svg></button><button class="askbtn" data-act="askRow" aria-pressed="${askCtx === x.it[0]}" aria-label="이 문장 질문하기" title="이 문장 AI에게 질문">?</button></div>
+      </div>`;
+    }
+  }
+  if (!shown) body = `<p class="empty">이 세트의 문장을 모두 외웠어요. ‘외운 문장 숨기기’를 끄면 다시 볼 수 있어요.</p>`;
+
+  const banner = set.unsaved ? `<div class="banner"><span>붙여넣은 여행 영어 ${total}문장을 미리 보여드리고 있어요. 저장하면 다음에도 그대로 열려요.</span><button class="btn primary" data-act="saveSample">이 세트 저장하기</button></div>` : "";
+  const manage = set.unsaved ? "" : (confirmDelete
+    ? `<span class="confirm">‘${esc(set.title)}’을(를) 삭제할까요? <button class="btn danger solid" data-act="delYes">삭제</button><button class="btn" data-act="delNo">취소</button></span>`
+    : `<button class="btn" data-act="edit">텍스트 수정</button><button class="btn danger" data-act="del">세트 삭제</button>`);
+
+  $("main").innerHTML = `${banner}
+  <div class="bar">
+    <div class="bar-row">
+      <div class="seg" role="group" aria-label="가리기">
+        <button data-act="mode" data-mode="hideKo" aria-pressed="${mode === "hideKo"}">한글 가리기</button>
+        <button data-act="mode" data-mode="hideEn" aria-pressed="${mode === "hideEn"}">영어 가리기</button>
+        <button data-act="mode" data-mode="all" aria-pressed="${mode === "all"}">모두 보기</button>
+      </div>
+      <button class="btn" data-act="recover" ${revealed.size && mode !== "all" ? "" : "disabled"}>다시 가리기</button>
+    </div>
+    <div class="bar-row">
+      <label class="toggle" for="tKnown"><input type="checkbox" id="tKnown" ${hideKnown ? "checked" : ""}> 외운 문장 숨기기</label>
+      <label class="toggle" for="tShuffle"><input type="checkbox" id="tShuffle" ${shuffle ? "checked" : ""}> 순서 섞기</label>
+      <span class="progress">외운 문장 ${knownN} / ${total} · ${pct}%</span>
+    </div>
+    <div class="meter" aria-hidden="true"><i style="width:${pct}%"></i></div>
+  </div>
+  <div id="list">${body}</div>
+  <div class="actions" style="margin-top:22px">${manage}<span class="spacer"></span>${(set.known || []).length && !set.unsaved ? `<button class="btn" data-act="resetKnown">외운 표시 모두 지우기</button>` : ""}</div>`;
+
+  $("tKnown").onchange = e => { hideKnown = e.target.checked; savePrefs(); render(); };
+  $("tShuffle").onchange = e => { shuffle = e.target.checked; order = null; render(); };
+}
+
+/* ---------- copy a sentence ---------- */
+function copyText(text, btn) {
+  const done = () => {
+    toast("복사했어요");
+    btn.classList.add("done");
+    setTimeout(() => btn.classList.remove("done"), 1200);
+  };
+  const fallback = () => {
+    const ta = document.createElement("textarea");
+    ta.value = text; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0"; ta.style.top = "0";
+    document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, text.length);
+    let ok = false; try { ok = document.execCommand("copy"); } catch (e) {}
+    ta.remove();
+    if (ok) done(); else toast("복사하지 못했어요. 문장을 길게 눌러 직접 복사해 주세요.");
+  };
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
+    else fallback();
+  } catch (e) { fallback(); }
+}
+
+/* ---------- word lookup popup ---------- */
+const WORD_RE = /[A-Za-z]+(?:['’\-][A-Za-z]+)*/g;
+function wordify(text) {
+  let out = "", last = 0;
+  for (const m of text.matchAll(WORD_RE)) {
+    out += esc(text.slice(last, m.index)) + `<span class="w" data-act="word" data-word="${esc(m[0])}" tabindex="0" role="button">${esc(m[0])}</span>`;
+    last = m.index + m[0].length;
+  }
+  return out + esc(text.slice(last));
+}
+const WCACHE_KEY = "mungjang.words.v2";
+let wcache = {};
+try { wcache = JSON.parse(localStorage.getItem(WCACHE_KEY) || "{}"); } catch (e) {}
+function cachePut(k, v) {
+  wcache[k] = v;
+  const keys = Object.keys(wcache);
+  if (keys.length > 600) for (const old of keys.slice(0, keys.length - 600)) delete wcache[old];
+  try { localStorage.setItem(WCACHE_KEY, JSON.stringify(wcache)); } catch (e) {}
+}
+let samplerP = null;
+const KEY_LS = "mungjang.apiKey";
+const MODEL_QUICK = "claude-haiku-5-5", MODEL_CHAT = "claude-sonnet-5-5";
+function getKey() { try { return localStorage.getItem(KEY_LS) || ""; } catch (e) { return ""; } }
+function apiErr(status, body) {
+  const code = status === 401 || status === 403 ? "bad_key" : status === 429 ? "rate_limited" : status === 529 || status >= 500 ? "overloaded" : "api_error";
+  return { code, message: (body && body.error && body.error.message) || ("HTTP " + status) };
+}
+async function callApi({ messages, model, max_tokens, stream, onText, signal }) {
+  const key = getKey();
+  if (!key) throw { code: "no_key" };
+  let res;
+  try {
+    res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST", signal,
+      headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+      body: JSON.stringify({ model, max_tokens, messages, stream: !!stream })
+    });
+  } catch (e) { if (e && e.name === "AbortError") throw { code: "aborted" }; throw { code: "network" }; }
+  if (!res.ok) { let b = null; try { b = await res.json(); } catch (e) {} throw apiErr(res.status, b); }
+  if (!stream) { const j = await res.json(); return { text: (j.content || []).filter(c => c.type === "text").map(c => c.text).join("") }; }
+  const reader = res.body.getReader(), dec = new TextDecoder();
+  let buf = "", text = "";
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
+        if (!line.startsWith("data:")) continue;
+        let ev; try { ev = JSON.parse(line.slice(5)); } catch (e) { continue; }
+        if (ev.type === "content_block_delta" && ev.delta && ev.delta.type === "text_delta") { text += ev.delta.text; onText && onText({ text, delta: ev.delta.text }); }
+        if (ev.type === "error") throw { code: "api_error", message: ev.error && ev.error.message };
+      }
+    }
+  } catch (e) { if (e && e.name === "AbortError") throw { code: "aborted" }; throw e; }
+  return { text };
+}
+function makeSampler() {
+  const s = (input, opts = {}) => callApi({
+    messages: typeof input === "string" ? [{ role: "user", content: input }] : input,
+    model: MODEL_CHAT, max_tokens: 1500, stream: !!opts.onText, onText: opts.onText, signal: opts.signal
+  });
+  s.json = async (input) => {
+    const r = await callApi({ messages: [{ role: "user", content: input }], model: MODEL_QUICK, max_tokens: 800 });
+    const m = r.text.match(/\{[\s\S]*\}/);
+    if (!m) throw { code: "invalid_json" };
+    try { return JSON.parse(m[0]); } catch (e) { throw { code: "invalid_json" }; }
+  };
+  return s;
+}
+const getSampler = async () => getKey() ? makeSampler() : null;
+function aiErrMsg(e, what) {
+  const c = e && e.code;
+  if (c === "bad_key") return "API 키가 맞지 않아요. 위의 ‘AI 설정’에서 키를 다시 확인해 주세요.";
+  if (c === "rate_limited") return "요청이 많아 잠시 쉬어야 해요. 조금 뒤에 다시 해주세요.";
+  if (c === "overloaded") return "AI 서버가 바빠요. 잠시 뒤 다시 해주세요.";
+  if (c === "network") return "인터넷 연결을 확인해 주세요.";
+  if (c === "api_error" && e.message && /credit|balance|billing/i.test(e.message)) return "API 크레딧이 부족해요. console.anthropic.com에서 결제 정보를 확인해 주세요.";
+  return what + "을(를) 불러오지 못했어요. 다시 시도해 주세요." + (e && e.message ? " (" + e.message + ")" : "");
+}
+let popReq = 0, activeWordEl = null;
+
+function closePop() {
+  $("pop").hidden = true; popReq++;
+  if (activeWordEl) activeWordEl.classList.remove("active");
+  activeWordEl = null;
+}
+function placePop(el) {
+  // Placed in page coordinates (not fixed to the screen), so it works even where the app shows the page at full height.
+  const pop = $("pop");
+  const r = el.getBoundingClientRect(), pw = pop.offsetWidth, ph = pop.offsetHeight;
+  const vw = document.documentElement.clientWidth;
+  const left = Math.min(Math.max(16, r.left + r.width / 2 - pw / 2), Math.max(16, vw - pw - 16));
+  let top = r.bottom + 8;
+  if (r.bottom + 8 + ph > window.innerHeight - 8 && r.top - ph - 8 > 8) top = r.top - ph - 8;
+  pop.style.left = (left + window.scrollX) + "px";
+  pop.style.top = (top + window.scrollY) + "px";
+  const pr = pop.getBoundingClientRect();
+  if (pr.bottom > window.innerHeight || pr.top < 0) { try { pop.scrollIntoView({ block: "nearest", behavior: "smooth" }); } catch (e) {} }
+}
+function popHTML(word, body) {
+  return `<button class="pop-close" data-act="popClose" aria-label="닫기">×</button>${body}`;
+}
+function showResult(word, d) {
+  const lemma = d.lemma && d.lemma.toLowerCase() !== word.toLowerCase() ? `<p class="pop-lemma">기본형 <b>${esc(d.lemma)}</b>${d.lemmaMeaning ? " · " + esc(d.lemmaMeaning) : ""}</p>` : "";
+  return popHTML(word, `
+    <div class="pop-head"><span class="pop-word">${esc(word)}</span>${d.ipa ? `<span class="pop-ipa">${esc(d.ipa)}</span>` : ""}${d.pos ? `<span class="pop-pos">${esc(d.pos)}</span>` : ""}</div>
+    <div class="pop-meaning">${esc(d.meaning || "")}</div>
+    ${lemma}
+    ${d.why ? `<div class="pop-why"><b>왜 이렇게 쓸까?</b>${esc(d.why)}</div>` : ""}
+    ${d.note ? `<p class="pop-note">${esc(d.note)}</p>` : ""}
+    ${d.example ? `<p class="pop-ex">${esc(d.example)}${d.exampleKo ? `<span>${esc(d.exampleKo)}</span>` : ""}</p>` : ""}`);
+}
+async function openWord(el) {
+  const word = el.dataset.word;
+  const row = el.closest(".row");
+  const sentence = row ? row.dataset.en : word;
+  if (activeWordEl) activeWordEl.classList.remove("active");
+  activeWordEl = el; el.classList.add("active");
+  const pop = $("pop"), req = ++popReq, key = word.toLowerCase() + "|" + sentence;
+  pop.hidden = false;
+  if (wcache[key]) { pop.innerHTML = showResult(word, wcache[key]); placePop(el); return; }
+  pop.innerHTML = popHTML(word, `<div class="pop-head"><span class="pop-word">${esc(word)}</span></div><div class="pop-loading">뜻을 찾는 중</div>`);
+  placePop(el);
+  const sampler = await getSampler();
+  if (req !== popReq) return;
+  if (!sampler) { pop.innerHTML = popHTML(word, `<div class="pop-head"><span class="pop-word">${esc(word)}</span></div><p class="pop-note">단어 설명을 보려면 맨 위 <b>AI 설정</b>에서 API 키를 넣어 주세요.</p>`); placePop(el); return; }
+  try {
+    const prompt = `당신은 한국인 영어 학습자를 위한 영한 사전입니다.
+문장: "${sentence}"
+단어: "${word}"
+이 문장 안에서 쓰인 뜻을 기준으로 설명하세요. JSON 객체 하나만 답하세요. 형식:
+{"ipa":"미국식 발음기호(/ /로 감싸기)","pos":"품사(한국어, 예: 동사, 명사, 전치사, 조동사)","meaning":"이 문장에서의 뜻(한국어, 짧게)","lemma":"기본형(원형·단수형, 같으면 같은 단어)","lemmaMeaning":"기본형의 대표 뜻(짧게, 없으면 빈 문자열)","why":"이 단어가 왜 이런 뜻으로 쓰이는지 떠올릴 수 있는 그림·비유·유래(어원, 원래 이미지, 다른 뜻에서 어떻게 넓어졌는지)를 2~3문장으로 쉽게. 예: sunny side up은 노른자를 햇빛에 빗댄 것. 억지스러운 유래는 지어내지 말고 확실한 것만","note":"이 문장에서 어떻게 쓰였는지 한두 문장 설명(한국어; 숙어·축약형이면 그 표현 전체를 설명)","example":"이 단어를 쓴 다른 짧은 영어 예문","exampleKo":"예문 해석"}`;
+    const d = await sampler.json(prompt, { modelTier: "quick" });
+    if (!d || typeof d !== "object") throw { code: "invalid_json" };
+    cachePut(key, d);
+    if (req !== popReq) return;
+    pop.innerHTML = showResult(word, d);
+  } catch (e) {
+    if (req !== popReq) return;
+    const msg = aiErrMsg(e, "설명");
+    pop.innerHTML = popHTML(word, `<div class="pop-head"><span class="pop-word">${esc(word)}</span></div><p class="pop-note">${msg}</p>`);
+  }
+  placePop(el);
+}
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") closePop();
+  if ((e.key === "Enter" || e.key === " ") && e.target.classList && e.target.classList.contains("w")) { e.preventDefault(); openWord(e.target); }
+});
+
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-act]");
+  if (!e.target.closest("#pop") && !(b && b.dataset.act === "word")) { if (!$("pop").hidden) closePop(); }
+  if (!b) return;
+  const act = b.dataset.act;
+  if (act === "word") { openWord(b); return; }
+  if (act === "popClose") { closePop(); return; }
+  if (act === "copy") { copyText(b.closest(".row").dataset.en, b); return; }
+  if (act === "askRow") { const row = b.closest(".row"); setAskCtx(row.dataset.en, row.dataset.ko, true); return; }
+  if (act === "askFold") { toggleFold(!askFolded); return; }
+  if (act === "askCtxClear") { setAskCtx(null, "", false); return; }
+  if (act === "suggest") { sendAsk(b.dataset.q); return; }
+  if (act === "askClear") { if (askAbort) askAbort.abort(); askMsgs = []; askBusy = false; renderAsk(); return; }
+  const set = currentSet();
+  if (act === "pick") { currentId = b.dataset.id; view = "study"; resetSession(); savePrefs(); render(); }
+  else if (act === "new") { view = "new"; render(); }
+  else if (act === "cancel") { view = "study"; render(); }
+  else if (act === "mode") { mode = b.dataset.mode; revealed = new Set(); savePrefs(); render(); }
+  else if (act === "recover") { revealed = new Set(); render(); }
+  else if (act === "reveal") { revealed.add(b.dataset.key); render(); }
+  else if (act === "rehide") { revealed.delete(b.dataset.key); render(); }
+  else if (act === "known") {
+    if (!set) return;
+    const k = b.dataset.key;
+    const known = new Set(set.known || []);
+    known.has(k) ? known.delete(k) : known.add(k);
+    if (set.unsaved) { set.known = [...known]; render(); return; }
+    store.save({ ...set, known: [...known] });
+  }
+  else if (act === "saveSample") {
+    const id = "set-" + Date.now().toString(36);
+    store.save({ id, title: SAMPLE_TITLE, raw: SAMPLE_TEXT, sections: sample.sections, known: sample.known, createdAt: Date.now() });
+    currentId = id; savePrefs(); toast("저장했어요"); render();
+  }
+  else if (act === "edit") { view = "edit"; render(); }
+  else if (act === "del") { confirmDelete = true; render(); }
+  else if (act === "delNo") { confirmDelete = false; render(); }
+  else if (act === "delYes") { const id = currentId; currentId = null; confirmDelete = false; store.remove(id); toast("삭제했어요"); render(); }
+  else if (act === "resetKnown") { if (set) store.save({ ...set, known: [] }); }
+});
+
+/* ---------- ask AI about a sentence ---------- */
+const SUGGEST = ["왜 이렇게 말하는지 이미지·유래로 설명해줘", "문장 구조를 단어별로 풀어줘", "더 자연스럽거나 공손한 표현이 있어?", "비슷한 상황에서 쓰는 표현 3개", "발음할 때 연음·강세 포인트", "상대가 이렇게 답하면 어떻게 이어가?"];
+function mdLite(s) {
+  const lines = esc(s).split(/\n/);
+  let out = "", inList = false;
+  const inline = x => x.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, '<em class="en">$1</em>');
+  for (const ln of lines) {
+    const m = ln.match(/^\s*(?:[-*•]|\d+[.)])\s+(.*)/);
+    if (m) { if (!inList) { out += "<ul>"; inList = true; } out += "<li>" + inline(m[1]) + "</li>"; continue; }
+    if (inList) { out += "</ul>"; inList = false; }
+    if (ln.trim()) out += "<p>" + inline(ln.replace(/^#+\s*/, "")) + "</p>";
+  }
+  return out + (inList ? "</ul>" : "");
+}
+function setAskCtx(en, ko, focus) {
+  askCtx = en; askCtxKo = ko || "";
+  renderAsk(); render();
+  if (focus) { if (askFolded) toggleFold(false); $("askInput").focus({ preventScroll: true }); }
+}
+function renderAsk() {
+  $("askCtx").innerHTML = askCtx
+    ? `<span class="ctx-pill"><b>${esc(askCtx)}</b><button data-act="askCtxClear" aria-label="선택한 문장 빼기" title="선택 해제">×</button></span>` + SUGGEST.map(q => `<button class="suggest" data-act="suggest" data-q="${esc(q)}" ${askBusy ? "disabled" : ""}>${esc(q)}</button>`).join("")
+    : `<span>문장 옆 <b style="color:var(--accent)">?</b> 버튼을 누르면 그 문장을 골라 질문할 수 있어요. 문장을 고르지 않고 바로 물어봐도 돼요.</span>`;
+  const th = $("askThread");
+  th.hidden = askMsgs.length === 0;
+  th.innerHTML = askMsgs.map(m => m.role === "user"
+    ? `<div class="msg q">${m.ctx ? `<small>${esc(m.ctx)}</small>` : ""}${esc(m.q)}</div>`
+    : m.error ? `<div class="msg err">${esc(m.error)}</div>`
+    : `<div class="msg a">${m.content ? mdLite(m.content) : '<span class="pop-loading">생각하는 중</span>'}</div>`).join("");
+  th.scrollTop = th.scrollHeight;
+  $("askClear").hidden = askMsgs.length === 0;
+  $("askSend").disabled = askBusy;
+}
+function buildInput() {
+  const set = currentSet();
+  const sys = `당신은 한국인 영어 학습자를 돕는 친절하고 정확한 영어 선생님입니다. 학습자는 여행·생활 영어 문장을 외우고 있습니다${set ? ` (현재 공부 중인 세트: "${set.title}")` : ""}.
+설명할 때는 "왜 원어민이 이렇게 말하는지"를 떠올릴 수 있게 단어의 원래 이미지·비유·유래를 곁들이면 좋습니다(예: sunny side up은 노른자를 햇빛에 빗댄 표현). 확실하지 않은 유래는 지어내지 마세요.
+답변 규칙: 한국어로 답하고, 영어 예문은 \`백틱\`으로 감싸세요. 핵심부터 말하고, 필요하면 "- " 목록을 쓰세요. 너무 길지 않게(대략 10줄 안팎) 답하세요. 문법 용어는 쉬운 말로 풀어 주세요.`;
+  const msgs = [];
+  askMsgs.forEach((m, i) => {
+    if (m.role === "user") {
+      let c = (m.ctx ? `[질문 대상 문장] ${m.ctx}${m.ctxKo ? `\n[한국어 해석] ${m.ctxKo}` : ""}\n\n` : "") + `[질문] ${m.q}`;
+      if (msgs.length === 0) c = sys + "\n\n" + c;
+      msgs.push({ role: "user", content: c });
+    } else if (m.content && !m.error) msgs.push({ role: "assistant", content: m.content });
+    else if (msgs.length && msgs[msgs.length - 1].role === "user" && i < askMsgs.length - 1) msgs.pop();
+  });
+  return msgs;
+}
+async function sendAsk(q) {
+  q = (q || "").trim();
+  if (!q || askBusy) return;
+  askMsgs.push({ role: "user", q, ctx: askCtx, ctxKo: askCtxKo });
+  const input = buildInput();
+  const ans = { role: "assistant", content: "" };
+  askMsgs.push(ans);
+  askBusy = true; $("askInput").value = ""; renderAsk();
+  const sampler = await getSampler();
+  if (!sampler) { ans.error = "AI에게 질문하려면 맨 위 ‘AI 설정’에서 API 키를 넣어 주세요."; askBusy = false; renderAsk(); return; }
+  const ctrl = new AbortController(); askAbort = ctrl;
+  let raf = 0;
+  try {
+    const r = await sampler(input, { cache: false, signal: ctrl.signal, onText: ({ text }) => { ans.content = text; if (!raf) raf = requestAnimationFrame(() => { raf = 0; if (askMsgs.includes(ans)) renderAsk(); }); } });
+    ans.content = r.text;
+  } catch (e) {
+    if (e && e.code === "aborted") return;
+    ans.error = ans.content ? null : aiErrMsg(e, "답");
+    if (!ans.error) delete ans.error;
+  } finally {
+    if (askAbort === ctrl) { askAbort = null; askBusy = false; }
+    if (askMsgs.includes(ans)) renderAsk();
+  }
+}
+let askFolded = false;
+try { askFolded = localStorage.getItem("mungjang.askFolded") === "1"; } catch (e) {}
+function toggleFold(v) {
+  askFolded = v;
+  $("ask").classList.toggle("collapsed", v);
+  $("askFold").textContent = v ? "펼치기" : "접기";
+  $("askFold").setAttribute("aria-expanded", String(!v));
+  try { localStorage.setItem("mungjang.askFolded", v ? "1" : "0"); } catch (e) {}
+}
+toggleFold(askFolded);
+function syncAskH() { document.documentElement.style.setProperty("--ask-h", $("ask").offsetHeight + "px"); }
+try { new ResizeObserver(syncAskH).observe($("ask")); } catch (e) { addEventListener("resize", syncAskH); }
+syncAskH();
+$("askForm").addEventListener("submit", e => { e.preventDefault(); sendAsk($("askInput").value); });
+$("askInput").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendAsk($("askInput").value); } });
+renderAsk();
+
+/* ---------- AI key settings ---------- */
+function renderAiState() {
+  const k = getKey();
+  $("aiState").textContent = k ? `키가 저장돼 있어요 (…${k.slice(-4)}). 단어 뜻과 질문 기능을 쓸 수 있어요.` : "아직 키가 없어요. 키 없이도 가림판은 그대로 쓸 수 있어요.";
+  $("aiBtn").textContent = k ? "AI 설정 ✓" : "AI 설정";
+}
+$("aiBtn").onclick = () => { $("aiPanel").hidden = !$("aiPanel").hidden; if (!$("aiPanel").hidden) $("aiKey").focus(); };
+$("aiPanel").addEventListener("submit", e => {
+  e.preventDefault();
+  const v = $("aiKey").value.trim();
+  if (!/^sk-ant-/.test(v)) { toast("sk-ant- 로 시작하는 API 키를 넣어 주세요"); return; }
+  try { localStorage.setItem(KEY_LS, v); } catch (err) { toast("이 브라우저에 저장할 수 없어요"); return; }
+  $("aiKey").value = ""; renderAiState(); toast("API 키를 저장했어요"); $("aiPanel").hidden = true;
+});
+$("aiDel").onclick = () => { try { localStorage.removeItem(KEY_LS); } catch (e) {} renderAiState(); toast("API 키를 지웠어요"); };
+renderAiState();
+
+render();
+store.init(render);
+</script>
+</body>
+</html>
