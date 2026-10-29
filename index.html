@@ -105,7 +105,8 @@ input[type=text], input[type=url], select { border: 1px solid var(--line); borde
       <button class="btn" id="next">다음 구간 ▶</button>
     </div>
     <div class="settings">
-      <label for="reps">구간마다 <select id="reps"></select> 회</label>
+      <label for="order">반복 방식 <select id="order"><option value="cycle">전체를 이어서 (1→2→…→처음)</option><option value="each">구간마다 따로</option></select></label>
+      <label for="reps"><select id="reps"></select> 회</label>
       <label for="gap">반복 사이 쉬기 <select id="gap"><option value="0">없음</option><option value="0.5">0.5초</option><option value="1">1초</option><option value="2">2초</option><option value="3">3초</option></select></label>
       <label for="rate">속도 <select id="rate"><option value="0.5">0.5배</option><option value="0.75">0.75배</option><option value="1">1배</option><option value="1.25">1.25배</option></select></label>
       <label class="toggle" for="loopOne"><input type="checkbox" id="loopOne"> 지금 구간만 계속</label>
@@ -130,7 +131,7 @@ input[type=text], input[type=url], select { border: 1px solid var(--line); borde
 <script>
 /* ---------- storage ---------- */
 const KEY = "ytRepeat.v1";
-let state = { videos: [], current: null, reps: 10, gap: 1, rate: 1 };
+let state = { videos: [], current: null, reps: 10, gap: 1, rate: 1, order: "cycle" };
 try { Object.assign(state, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch (e) {}
 function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
 
@@ -231,13 +232,24 @@ setInterval(() => {
   if (!sg) return stopRun();
   const t = now();
   if (t >= sg.e - 0.05 || t < sg.s - 1.5) {
-    run.count++;
     const reps = +state.reps;
     const loopOne = $("loopOne").checked;
     let nextIdx = run.idx;
-    if (!loopOne && run.count >= reps) {
-      nextIdx = run.idx + 1; run.count = 0;
-      if (nextIdx >= v.segs.length) { stopRun(); run.idx = 0; toast("모든 구간 반복을 마쳤어요"); renderStatus(); return; }
+    if (loopOne) {
+      run.count++;
+    } else if (state.order === "cycle") {
+      // play 1 → 2 → … → last, then start the next round
+      nextIdx = run.idx + 1;
+      if (nextIdx >= v.segs.length) {
+        nextIdx = 0; run.count++;
+        if (run.count >= reps) { stopRun(); run.idx = 0; run.count = 0; toast(`전체 구간 ${reps}바퀴 반복을 마쳤어요`); renderStatus(); return; }
+      }
+    } else {
+      run.count++;
+      if (run.count >= reps) {
+        nextIdx = run.idx + 1; run.count = 0;
+        if (nextIdx >= v.segs.length) { stopRun(); run.idx = 0; toast("모든 구간 반복을 마쳤어요"); renderStatus(); return; }
+      }
     }
     run.waiting = true; player.pauseVideo(); renderStatus();
     run.timer = setTimeout(() => { if (run.on) startSeg(nextIdx); }, (+state.gap) * 1000 + 50);
@@ -256,9 +268,13 @@ function renderStatus() {
   ["play", "prev", "next"].forEach(id => $(id).disabled = !n);
   if (!n) { $("now").textContent = v ? "구간을 추가하면 재생할 수 있어요." : "영상을 먼저 불러오세요."; $("nowLabel").textContent = ""; $("dots").innerHTML = ""; return; }
   const reps = $("loopOne").checked ? "∞" : state.reps;
-  $("now").innerHTML = `구간 <b>${run.idx + 1}</b> / ${n} · 반복 <b>${Math.min(run.count + (run.on ? 1 : 0), +state.reps) || 0}</b> / ${reps}`;
+  const cycle = state.order === "cycle" && !$("loopOne").checked;
+  const shownCount = cycle ? Math.min(run.count + 1, +state.reps) : (Math.min(run.count + (run.on ? 1 : 0), +state.reps) || 0);
+  $("now").innerHTML = cycle
+    ? `<b>${shownCount}</b> / ${reps}바퀴 · 구간 <b>${run.idx + 1}</b> / ${n}`
+    : `구간 <b>${run.idx + 1}</b> / ${n} · 반복 <b>${shownCount}</b> / ${reps}`;
   $("nowLabel").textContent = v.segs[run.idx] ? v.segs[run.idx].label : "";
-  $("dots").innerHTML = $("loopOne").checked ? "" : Array.from({ length: +state.reps }, (_, i) => `<i class="${i < run.count + (run.on ? 1 : 0) ? "on" : ""}"></i>`).join("");
+  $("dots").innerHTML = $("loopOne").checked ? "" : Array.from({ length: +state.reps }, (_, i) => `<i class="${i < (cycle ? run.count + (run.on ? 1 : 0) : shownCount) ? "on" : ""}"></i>`).join("");
 }
 function renderSegs() {
   const v = cur();
@@ -278,7 +294,7 @@ function renderSegs() {
 }
 function renderAll() {
   renderVideos(); renderSegs(); renderStatus();
-  $("reps").value = state.reps; $("gap").value = state.gap; $("rate").value = state.rate;
+  $("order").value = state.order || "cycle"; $("reps").value = state.reps; $("gap").value = state.gap; $("rate").value = state.rate;
 }
 $("reps").innerHTML = [1, 2, 3, 5, 7, 10, 15, 20, 30].map(n => `<option value="${n}">${n}</option>`).join("");
 
@@ -302,12 +318,13 @@ $("play").onclick = () => {
   if (run.on) { stopRun(); return; }
   startSeg(run.idx || 0);
 };
-$("prev").onclick = () => { const v = cur(); if (!v) return; run.count = 0; const i = Math.max(0, run.idx - 1); run.on ? startSeg(i) : (run.idx = i, renderStatus(), renderSegs()); };
-$("next").onclick = () => { const v = cur(); if (!v) return; run.count = 0; const i = Math.min(v.segs.length - 1, run.idx + 1); run.on ? startSeg(i) : (run.idx = i, renderStatus(), renderSegs()); };
+$("prev").onclick = () => { const v = cur(); if (!v) return; if (state.order !== "cycle") run.count = 0; const i = Math.max(0, run.idx - 1); run.on ? startSeg(i) : (run.idx = i, renderStatus(), renderSegs()); };
+$("next").onclick = () => { const v = cur(); if (!v) return; if (state.order !== "cycle") run.count = 0; const i = Math.min(v.segs.length - 1, run.idx + 1); run.on ? startSeg(i) : (run.idx = i, renderStatus(), renderSegs()); };
 $("reps").onchange = e => { state.reps = +e.target.value; save(); renderStatus(); };
 $("gap").onchange = e => { state.gap = +e.target.value; save(); };
 $("rate").onchange = e => { state.rate = +e.target.value; save(); try { player.setPlaybackRate(state.rate); } catch (err) {} };
 $("loopOne").onchange = () => renderStatus();
+$("order").onchange = e => { state.order = e.target.value; run.count = 0; save(); renderStatus(); };
 
 $("addSeg").onclick = () => {
   const v = cur(); if (!v) return;
