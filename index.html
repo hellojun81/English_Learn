@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>구간 반복 플레이어</title>
 <meta name="theme-color" content="#11181c">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
 <style>
@@ -188,6 +189,7 @@ function mountPlayer(vid) {
   player = new YT.Player("ytInner", {
     videoId: vid,
     playerVars: Object.assign({ playsinline: 1, rel: 0, modestbranding: 1 }, /^https?:$/.test(location.protocol) ? { origin: location.origin } : {}),
+    host: "https://www.youtube.com",
     events: {
       onError: e => {
         const msg = (e.data === 101 || e.data === 150) ? "이 영상은 올린 사람이 다른 사이트에서 재생을 막아뒀어요. 다른 영상을 써주세요."
